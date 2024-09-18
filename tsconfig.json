@@ -1,0 +1,23 @@
+{
+    "include": ["./src/**/*.ts"],
+    "compilerOptions": {
+        "outDir": "./dist/",
+        "target": "es6",
+        "module": "esnext",
+        "moduleResolution": "node",
+        "lib": ["DOM", "ES6", "DOM.Iterable", "ES2022"],
+        "noUnusedParameters": true,
+        "noFallthroughCasesInSwitch": true,
+        "noImplicitAny": false,
+        "resolveJsonModule": true,
+        "strict": true,
+        "noUnusedLocals": true,
+        "noImplicitReturns": true,
+        "noImplicitOverride": true,
+        "allowJs": true,
+        "checkJs": false,
+        "skipLibCheck": true,
+        "allowSyntheticDefaultImports": true,
+        "esModuleInterop": true
+    }
+}
