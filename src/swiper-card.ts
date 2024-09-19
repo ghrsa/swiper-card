@@ -15,7 +15,19 @@ import Swiper from 'swiper'
 import SwiperCSS from 'swiper/swiper-bundle.css'
 import deepcopy from 'deep-clone-simple'
 import { type HomeAssistant, type LovelaceCard, type LovelaceCardConfig } from 'custom-card-helpers'
-import { type SwiperOptions } from 'swiper/types'
+import { type SwiperModule, type SwiperOptions } from 'swiper/types'
+import {
+    Scrollbar,
+    Navigation,
+    Pagination,
+    Zoom,
+    EffectFade,
+    EffectCards,
+    EffectCube,
+    EffectCoverflow,
+    EffectFlip,
+    Parallax
+} from 'swiper/modules'
 
 const CARD_VERSION = '0.0.1'
 const HELPERS = (window as any).loadCardHelpers ? (window as any).loadCardHelpers() : Promise.reject(Error('swiper-card could not load card helpers'));
@@ -102,6 +114,44 @@ export class SwiperCard extends LitElement implements LovelaceCard {
                 this.#swiper?.update()
             })
         }
+
+        const modules: SwiperModule[] = []
+        if ('scrollbar' in this.#parameters) {
+            modules.push(Scrollbar)
+        }
+        if ('navigation' in this.#parameters) {
+            modules.push(Navigation)
+        }
+        if ('pagination' in this.#parameters) {
+            modules.push(Pagination)
+        }
+        if ('zoom' in this.#parameters) {
+            modules.push(Zoom)
+        }
+        if ('parallax' in this.#parameters) {
+            modules.push(Parallax)
+        }
+        if ('effect' in this.#parameters) {
+            switch (this.#parameters.effect) {
+                case 'fade':
+                    modules.push(EffectFade)
+                    break
+                case 'flip':
+                    modules.push(EffectFlip)
+                    break
+                case 'coverflow':
+                    modules.push(EffectCoverflow)
+                    break
+                case 'cube':
+                    modules.push(EffectCube)
+                    break
+                case 'card':
+                    modules.push(EffectCards)
+                    break
+            }
+        }
+        Swiper.use(modules)
+
         void this.createCards()
     }
 
