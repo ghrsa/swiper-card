@@ -140,10 +140,10 @@ export class SwiperCard extends LitElement implements LovelaceCard {
 
         return html`
         <div class="swiper" dir="${this.#hass.translationMetadata.translations[this.#hass.selectedLanguage ?? this.#hass.language].isRTL || false ? 'rtl' : 'ltr'}">
-            <div class="swiper-wrapper">${this.#cards}</div>
+            <div class="swiper-wrapper">${this._cards}</div>
             ${'pagination' in this.#parameters ? html` <div class="swiper-pagination"></div> ` : ''}
             ${'navigation' in this.#parameters ? html`<div class="swiper-button-next"></div><div class="swiper-button-prev"></div>` : ''}
-            ${'scrollbar' in this.#parameters ? html` <div class="swiper-scrollbar"></div> ` : ''}
+            ${'scrollbar' in this.#parameters ? html` <div class="swiper-scrollbar"></div>` : ''}
         </div>
         ${'style' in this._config ? html`<style>${this._config.style}</style>` : html``}
     `
@@ -231,11 +231,29 @@ export class SwiperCard extends LitElement implements LovelaceCard {
         this.#swiper?.update()
     }
 
-    private async createCardElement (cardConfig: LovelaceCardConfig): Promise<LovelaceCard> {
-        const element: LovelaceCard = (await HELPERS).createCardElement(cardConfig)
+    private async createCardElement (cardConfig: LovelaceCardConfig): Promise<LovelaceCard | HTMLElement> {
+        let element: LovelaceCard | HTMLElement
+        if (cardConfig.type === 'swiper-image') {
+            element = document.createElement('div')
+            let baseImage = `<img class="swiper-slide-image" loading="lazy" src="${cardConfig.src ?? ''}" /><div class="swiper-lazy-preloader"></div>`
+            if ('zoom' in this.#parameters) {
+                baseImage = `<div class="swiper-zoom-container">${baseImage}</div>`
+            }
+            element.innerHTML = `${baseImage}${'html' in cardConfig && typeof 'html' === 'string' ? cardConfig.html : ''}`
+        } else if (cardConfig.type === 'swiper-html') {
+            element = document.createElement('div')
+            element.innerHTML = 'html' in cardConfig && typeof 'html' === 'string' ? cardConfig.html : ''
+        } else {
+            try {
+                element = (await HELPERS).createCardElement(cardConfig)
+            } catch (e) {
+                element = document.createElement('hui-warning')
+                element.innerText = (e as any).message
+            }
+        }
         element.className = 'swiper-slide'
-        if ('card_width' in (this.#config ?? {})) {
-            element.style.width = this.#config?.card_width
+        if ('card_width' in (this._config ?? {})) {
+            element.style.width = this._config?.card_width
         }
         if (this.#hass) {
             if ('hass' in element) { element.hass = this.#hass }
@@ -253,10 +271,10 @@ export class SwiperCard extends LitElement implements LovelaceCard {
         return element
     }
 
-    private async rebuildCard (cardElToReplace: LovelaceCard, config: LovelaceCardConfig): Promise<void> {
+    private async rebuildCard (cardElToReplace: LovelaceCard | HTMLElement, config: LovelaceCardConfig): Promise<void> {
         let newCardEl = await this.createCardElement(config)
         try {
-            newCardEl.hass = this.hass
+            if ('hass' in newCardEl) { newCardEl.hass = this.hass }
         } catch (e) {
             newCardEl = document.createElement('hui-warning')
             newCardEl.innerText = (e as any).message
