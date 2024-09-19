@@ -185,8 +185,12 @@ export class SwiperCard extends LitElement implements LovelaceCard {
             this.#parameters.scrollbar.el = this.shadowRoot?.querySelector<HTMLElement>('.swiper-scrollbar')
         }
 
-        if (this.#config && 'start_card' in this.#config) {
-            this.#parameters.initialSlide = (this.#config.start_card ?? 1) - 1
+        if (this._config && 'start_card' in this._config) {
+            let index = this._config.start_card ?? 0
+            if (index < 0) {
+                index = Math.max(0, (this._cards?.length ?? 0) + index)
+            }
+            this.#parameters.initialSlide = index
         }
 
         this.#swiper = new Swiper(
