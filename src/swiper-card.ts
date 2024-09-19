@@ -7,7 +7,6 @@ import {
     unsafeCSS,
     type CSSResultGroup,
     type PropertyValues,
-    type PropertyDeclarations,
     type TemplateResult
 } from 'lit'
 import { customElement, property } from 'lit/decorators.js'
@@ -29,8 +28,8 @@ const HELPERS = (window as any).loadCardHelpers ? (window as any).loadCardHelper
     description: 'A card which lets you swipe through multiple Lovelace cards.'
 })
 
-const computeCardSize = (card: LovelaceCard): number | Promise<number> => {
-    if (typeof card.getCardSize === 'function') {
+const computeCardSize = (card: LovelaceCard | HTMLElement): number | Promise<number> => {
+    if ('getCardSize' in card && typeof card.getCardSize === 'function') {
         return card.getCardSize()
     }
     if (customElements.get(card.localName)) {
@@ -51,12 +50,12 @@ export interface SwiperCardConfig extends LovelaceCardConfig {
 
 @customElement('swiper-card')
 export class SwiperCard extends LitElement implements LovelaceCard {
-    #swiper?: Swiper
-    #config?: SwiperCardConfig
+    @property({}) _config?: SwiperCardConfig
+    @property({}) _cards?: Array<LovelaceCard | HTMLElement>
     #parameters: SwiperOptions = {}
-    #cards?: LovelaceCard[]
     #hass?: HomeAssistant
 
+    #swiper?: Swiper
     #loaded = false
     #updated = false
     #resetTimer = -1
@@ -71,40 +70,33 @@ export class SwiperCard extends LitElement implements LovelaceCard {
     set hass (hass: HomeAssistant | undefined) {
         this.#hass = hass
 
-        if (!this.#cards) {
+        if (!this._cards) {
             return
         }
 
-        this.#cards.forEach((element) => {
-            element.hass = this.#hass
+        this._cards.forEach((element) => {
+            if ('hass' in element) { element.hass = this.#hass }
         })
     }
 
-    static override get properties (): PropertyDeclarations {
-        return {
-            config: {},
-            cards: {}
-        }
-    }
-
-    static getStubConfig (): Record<string, unknown> {
+    public static getStubConfig (): Record<string, unknown> {
         return { cards: [] }
     }
 
     override shouldUpdate (changedProps: PropertyValues): boolean {
-        if (!this.#config) {
+        if (!this._config) {
             return false
         }
-        return changedProps.has('config') || changedProps.has('cards')
+        return changedProps.has('_config') || changedProps.has('_cards')
     }
 
     public setConfig (config: SwiperCardConfig): void {
         if (!config?.cards || !Array.isArray(config.cards)) {
             throw new Error('Card config incorrect')
         }
-        this.#config = config
-        this.#parameters = deepcopy(this.#config.parameters) || {}
-        this.#cards = []
+        this._config = config
+        this.#parameters = deepcopy(this._config.parameters) || {}
+        this._cards = []
         if (window.ResizeObserver) {
             this.#ro = new ResizeObserver(() => {
                 this.#swiper?.update()
@@ -115,7 +107,7 @@ export class SwiperCard extends LitElement implements LovelaceCard {
 
     override connectedCallback (): void {
         super.connectedCallback()
-        if (this.#config && this.#hass && this.#updated && !this.#loaded) {
+        if (this._config && this.#hass && this.#updated && !this.#loaded) {
             void this.initialLoad()
         } else {
             this.#swiper?.update()
@@ -125,7 +117,7 @@ export class SwiperCard extends LitElement implements LovelaceCard {
     override updated (changedProperties: PropertyValues): void {
         super.updated(changedProperties)
         this.#updated = true
-        if (this.#config && this.#hass && this.isConnected && !this.#loaded) {
+        if (this._config && this.#hass && this.isConnected && !this.#loaded) {
             void this.initialLoad()
         } else {
             this.#swiper?.update()
@@ -142,7 +134,7 @@ export class SwiperCard extends LitElement implements LovelaceCard {
     }
 
     override render (): TemplateResult {
-        if (!this.#config || !this.#hass) {
+        if (!this._config || !this.#hass) {
             return html``
         }
 
@@ -202,7 +194,7 @@ export class SwiperCard extends LitElement implements LovelaceCard {
             this.#parameters
         )
 
-        if ((this.#config?.reset_after ?? -1) > 0) {
+        if ((this._config?.reset_after ?? -1) > 0) {
             this.#swiper.on('slideChange', () => {
                 this.startResetTimer()
             })
@@ -221,18 +213,18 @@ export class SwiperCard extends LitElement implements LovelaceCard {
         }
         this.#resetTimer = window.setTimeout(() => {
             this.#swiper?.slideTo(this.#parameters.initialSlide ?? 0)
-        }, (this.#config?.reset_after ?? 1) * 1000)
+        }, (this._config?.reset_after ?? 1) * 1000)
     }
 
     private async createCards (): Promise<void> {
         this.#cardPromises = Promise.all(
-            (this.#config?.cards ?? []).map(async (config) => await this.createCardElement(config))
+            (this._config?.cards ?? []).map(async (config) => await this.createCardElement(config))
         )
 
-        this.#cards = await this.#cardPromises
+        this._cards = await this.#cardPromises
         const observer = this.#ro
         if (observer) {
-            this.#cards.forEach((card) => {
+            this._cards.forEach((card) => {
                 observer.observe(card)
             })
         }
@@ -246,7 +238,7 @@ export class SwiperCard extends LitElement implements LovelaceCard {
             element.style.width = this.#config?.card_width
         }
         if (this.#hass) {
-            element.hass = this.#hass
+            if ('hass' in element) { element.hass = this.#hass }
         }
         element.addEventListener(
             'll-rebuild',
@@ -273,7 +265,7 @@ export class SwiperCard extends LitElement implements LovelaceCard {
         if (cardElToReplace.parentElement) {
             cardElToReplace.parentElement.replaceChild(newCardEl, cardElToReplace)
         }
-        this.#cards = (this.#cards ?? []).map((curCardEl) =>
+        this._cards = (this._cards ?? []).map((curCardEl) =>
             curCardEl === cardElToReplace ? newCardEl : curCardEl
         )
         this.#ro?.unobserve(cardElToReplace)
@@ -284,11 +276,11 @@ export class SwiperCard extends LitElement implements LovelaceCard {
     async getCardSize (): Promise<number> {
         await this.#cardPromises
 
-        if (!this.#cards || this.#cards.length <= 0) {
+        if (!this._cards || this._cards.length <= 0) {
             return 0
         }
 
-        const results = await Promise.all(this.#cards.map(async it => await computeCardSize(it)))
+        const results = await Promise.all(this._cards.map(async it => await computeCardSize(it)))
 
         return Math.max(...results)
     }
