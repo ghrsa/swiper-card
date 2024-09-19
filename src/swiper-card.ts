@@ -42,7 +42,7 @@ const computeCardSize = (card: LovelaceCard | HTMLElement): number | Promise<num
 
 export interface SwiperCardConfig extends LovelaceCardConfig {
     cards: LovelaceCardConfig[]
-    swiper_style?: string
+    style?: string
     parameters?: SwiperOptions
     start_card?: number
     reset_after?: number
@@ -145,7 +145,7 @@ export class SwiperCard extends LitElement implements LovelaceCard {
             ${'navigation' in this.#parameters ? html`<div class="swiper-button-next"></div><div class="swiper-button-prev"></div>` : ''}
             ${'scrollbar' in this.#parameters ? html` <div class="swiper-scrollbar"></div> ` : ''}
         </div>
-        ${'swiper_style' in this.#config ? html`<style>${this.#config.swiper_style}</style>` : html``}
+        ${'style' in this._config ? html`<style>${this._config.style}</style>` : html``}
     `
     }
 
