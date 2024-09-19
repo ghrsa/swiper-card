@@ -56,6 +56,7 @@ export interface SwiperCardConfig extends LovelaceCardConfig {
     cards: LovelaceCardConfig[]
     style?: string
     parameters?: SwiperOptions
+    reverse?: boolean
     start_card?: number
     reset_after?: number
 }
@@ -188,8 +189,13 @@ export class SwiperCard extends LitElement implements LovelaceCard {
             return html``
         }
 
+        let rtl = (this.#hass.translationMetadata.translations[this.#hass.selectedLanguage ?? this.#hass.language].isRTL || false)
+        if (this._config.reverse === true) {
+            rtl = !rtl
+        }
+
         return html`
-        <div class="swiper" dir="${this.#hass.translationMetadata.translations[this.#hass.selectedLanguage ?? this.#hass.language].isRTL || false ? 'rtl' : 'ltr'}">
+        <div class="swiper" dir="${rtl ? 'rtl' : 'ltr'}">
             <div class="swiper-wrapper">${this._cards}</div>
             ${'pagination' in this.#parameters ? html` <div class="swiper-pagination"></div> ` : ''}
             ${'navigation' in this.#parameters ? html`<div class="swiper-button-next"></div><div class="swiper-button-prev"></div>` : ''}
