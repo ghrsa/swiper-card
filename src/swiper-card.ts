@@ -18,7 +18,7 @@ import { type HomeAssistant, type LovelaceCard, type LovelaceCardConfig } from '
 import { type SwiperOptions } from 'swiper/types'
 
 const CARD_VERSION = '0.0.1'
-const HELPERS = (window as any).loadCardHelpers ? (window as any).loadCardHelpers() : undefined;
+const HELPERS = (window as any).loadCardHelpers ? (window as any).loadCardHelpers() : Promise.reject(Error('swiper-card could not load card helpers'));
 
 // This puts your card into the UI card picker dialog
 (window as any).customCards = (window as any).customCards || [];
@@ -258,8 +258,7 @@ export class SwiperCard extends LitElement implements LovelaceCard {
         try {
             newCardEl.hass = this.hass
         } catch (e) {
-            newCardEl = document.createElement('ha-alert') as LovelaceCard
-            (newCardEl as LovelaceCard & { alertType: string }).alertType = 'error'
+            newCardEl = document.createElement('hui-warning')
             newCardEl.innerText = (e as any).message
         }
         if (cardElToReplace.parentElement) {
