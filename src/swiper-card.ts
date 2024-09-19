@@ -83,6 +83,12 @@ export class SwiperCard extends LitElement implements LovelaceCard {
     set hass (hass: HomeAssistant | undefined) {
         this.#hass = hass
 
+        if (hass) {
+            this.renderConfigTemplate()
+        } else {
+            this.#renderConfigUnsubscribe?.()
+        }
+
         if (!this._cards) {
             return
         }
@@ -103,9 +109,70 @@ export class SwiperCard extends LitElement implements LovelaceCard {
         return changedProps.has('_config') || changedProps.has('_cards')
     }
 
+    #renderConfig?: SwiperCardConfig
+    #renderConfigUnsubscribe?: () => void
+
+    private renderConfigTemplate (): void {
+        this.#renderConfigUnsubscribe?.()
+        this.#renderConfigUnsubscribe = undefined
+
+        if (this.#renderConfig) {
+            this.#hass?.connection.subscribeMessage(
+                (response) => {
+                    const msg = response as { result?: Record<string, any> | any[] }
+                    if (msg.result && Array.isArray(msg.result)) {
+                        if (!this._config || this._config.cards.length !== msg.result.length) { // set config with newly rendered values
+                            this.setConfig(Object.assign({ __renderedConfig: true }, this.#renderConfig, { cards: msg.result }))
+                        } else {
+                            // replace existing rendered values without re-setting entire config
+                            msg.result.forEach((card, index) => {
+                                if (JSON.stringify(this._config?.cards[index]) !== JSON.stringify(card)) {
+                                    void this.replaceRenderedCard(index, card as LovelaceCardConfig)
+                                }
+                            })
+                        }
+                    }
+                },
+                {
+                    type: 'render_template',
+                    template: this.#renderConfig.cards
+                }
+            )
+                .then(unsubscribe => { this.#renderConfigUnsubscribe = () => { this.#renderConfigUnsubscribe = undefined; void unsubscribe() } })
+                .catch(console.error)
+        }
+    }
+
+    async replaceRenderedCard (index: number, cardConfig: LovelaceCardConfig): Promise<void> {
+        if (this._cards && this._cards.length > index) {
+            await this.rebuildCard(this._cards[index], cardConfig)
+        }
+    }
+
+    setRenderConfig (config?: SwiperCardConfig): void {
+        if (config) {
+            this._config = undefined
+            this.#renderConfig = deepcopy(config)
+            this.renderConfigTemplate()
+        } else {
+            this.#renderConfig = undefined
+            this.#renderConfigUnsubscribe?.()
+            this.#renderConfigUnsubscribe = undefined
+        }
+    }
+
     public setConfig (config: SwiperCardConfig): void {
         if (!config?.cards || !Array.isArray(config.cards)) {
+            // noinspection SuspiciousTypeOfGuard
+            if (typeof config.cards === 'string') {
+                console.info('swiper-card got string for cards - will try to render as template')
+                this.setRenderConfig(config)
+                return
+            }
             throw new Error('Card config incorrect')
+        }
+        if (config.__renderedConfig !== true) {
+            this.setRenderConfig(undefined)
         }
         this._config = config
         this.#parameters = deepcopy(this._config.parameters) || {}
@@ -161,8 +228,16 @@ export class SwiperCard extends LitElement implements LovelaceCard {
         if (this._config && this.#hass && this.#updated && !this.#loaded) {
             void this.initialLoad()
         } else {
+            // render template if any and start lsitening for re-renders
+            this.renderConfigTemplate()
             this.#swiper?.update()
         }
+    }
+
+    override disconnectedCallback (): void {
+        super.disconnectedCallback()
+        // stop rendering template while we're not rendered
+        this.#renderConfigUnsubscribe?.()
     }
 
     override updated (changedProperties: PropertyValues): void {
@@ -288,7 +363,20 @@ export class SwiperCard extends LitElement implements LovelaceCard {
                 observer.observe(card)
             })
         }
-        this.#swiper?.update()
+        if (this.#swiper) {
+            if (this._config && 'start_card' in this._config) {
+                let index = this._config.start_card ?? 0
+                if (index < 0) {
+                    index = Math.max(0, (this._cards?.length ?? 0) + index)
+                }
+                this.#parameters.initialSlide = index
+                this.#swiper.params.initialSlide = index
+                this.#swiper.update()
+                this.#swiper.slideTo(this.#parameters.initialSlide ?? 0)
+            } else {
+                this.#swiper.update()
+            }
+        }
     }
 
     private async createCardElement (cardConfig: LovelaceCardConfig): Promise<LovelaceCard | HTMLElement> {
