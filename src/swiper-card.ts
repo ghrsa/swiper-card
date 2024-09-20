@@ -55,6 +55,7 @@ const computeCardSize = (card: LovelaceCard | HTMLElement): number | Promise<num
 export interface SwiperCardConfig extends LovelaceCardConfig {
     cards: LovelaceCardConfig[]
     style?: string
+    script?: string
     background_html?: string
     parameters?: SwiperOptions
     reverse?: boolean
@@ -270,16 +271,25 @@ export class SwiperCard extends LitElement implements LovelaceCard {
             rtl = !rtl
         }
 
+        const scriptTag = this._config && 'script' in this._config && typeof this._config.script === 'string'
+            ? ((): HTMLElement | undefined => {
+                const tag = document.createElement('script')
+                tag.innerHTML = this._config.script
+                return tag
+            })()
+            : undefined
+
         return html`
-        <div class="swiper" dir="${rtl ? 'rtl' : 'ltr'}">
-            ${'background_html' in this._config && typeof this._config.background_html === 'string' ? unsafeStatic(this._config.background_html) : ''}
-            <div class="swiper-wrapper">${this._cards}</div>
-            ${'pagination' in this.#parameters ? html`<div class="swiper-pagination"></div>` : ''}
-            ${'navigation' in this.#parameters ? html`<div class="swiper-button-next"></div><div class="swiper-button-prev"></div>` : ''}
-            ${'scrollbar' in this.#parameters ? html`<div class="swiper-scrollbar"></div>` : ''}
-        </div>
-        ${'style' in this._config ? html`<style>${this._config.style}</style>` : html``}
-    `
+            ${scriptTag}
+            <div class="swiper" dir="${rtl ? 'rtl' : 'ltr'}">
+                ${'background_html' in this._config && typeof this._config.background_html === 'string' ? unsafeStatic(this._config.background_html) : ''}
+                <div class="swiper-wrapper">${this._cards}</div>
+                ${'pagination' in this.#parameters ? html`<div class="swiper-pagination"></div>` : ''}
+                ${'navigation' in this.#parameters ? html`<div class="swiper-button-next"></div><div class="swiper-button-prev"></div>` : ''}
+                ${'scrollbar' in this.#parameters ? html`<div class="swiper-scrollbar"></div>` : ''}
+            </div>
+            ${'style' in this._config ? html`<style>${this._config.style}</style>` : html``}
+        `
     }
 
     private async initialLoad (): Promise<void> {
