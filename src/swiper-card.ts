@@ -2,13 +2,13 @@
 
 import {
     LitElement,
-    html,
     css,
     unsafeCSS,
     type CSSResultGroup,
     type PropertyValues,
     type TemplateResult
 } from 'lit'
+import { html, unsafeStatic } from 'lit/static-html.js'
 import { customElement, property } from 'lit/decorators.js'
 
 import Swiper from 'swiper'
@@ -55,6 +55,7 @@ const computeCardSize = (card: LovelaceCard | HTMLElement): number | Promise<num
 export interface SwiperCardConfig extends LovelaceCardConfig {
     cards: LovelaceCardConfig[]
     style?: string
+    background_html?: string
     parameters?: SwiperOptions
     reverse?: boolean
     start_card?: number
@@ -271,10 +272,11 @@ export class SwiperCard extends LitElement implements LovelaceCard {
 
         return html`
         <div class="swiper" dir="${rtl ? 'rtl' : 'ltr'}">
+            ${'background_html' in this._config && typeof this._config.background_html === 'string' ? unsafeStatic(this._config.background_html) : ''}
             <div class="swiper-wrapper">${this._cards}</div>
-            ${'pagination' in this.#parameters ? html` <div class="swiper-pagination"></div> ` : ''}
+            ${'pagination' in this.#parameters ? html`<div class="swiper-pagination"></div>` : ''}
             ${'navigation' in this.#parameters ? html`<div class="swiper-button-next"></div><div class="swiper-button-prev"></div>` : ''}
-            ${'scrollbar' in this.#parameters ? html` <div class="swiper-scrollbar"></div>` : ''}
+            ${'scrollbar' in this.#parameters ? html`<div class="swiper-scrollbar"></div>` : ''}
         </div>
         ${'style' in this._config ? html`<style>${this._config.style}</style>` : html``}
     `
